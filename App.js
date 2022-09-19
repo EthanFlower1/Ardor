@@ -6,107 +6,69 @@
  * @flow strict-local
  */
 
-import React from 'react';
-import type {Node} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import React, {useState, useEffect, useCallback} from 'react';
+import {io} from 'socket.io-client';
+import {StatusBar, SafeAreaView, StyleSheet} from 'react-native';
+import {GiftedChat, InputToolbar} from 'react-native-gifted-chat';
+import MsgNav from './components/MsgNav.js';
+import Emoji from './components/Emoji.js';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const App = () => {
+  const [messages, setMessages] = useState([
+    {
+      _id: 1,
+      text: 'Hello 👋',
+      createdAt: new Date(),
+      user: {
+        _id: 2,
+        name: 'React Native',
+        avatar: 'https://placeimg.com/140/140/any',
+      },
+    },
+  ]);
+  const [socket, setSocket] = useState(null);
+  const [emotion, setEmotion] = useState({});
 
-const Section = ({children, title}): Node => {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-};
+  useEffect(() => {
+    let sock = io('ws://localhost:3000');
+    setSocket(sock);
+    sock.on('private message', msg => {
+      console.log('message im receiving', msg);
+      setMessages(previousMessages => GiftedChat.append(previousMessages, msg));
+      setEmotion(msg[0].emotion);
+    });
+  }, []);
 
-const App: () => Node = () => {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const onSend = msg => {
+    socket.emit('private message', msg);
+    setMessages(previousMessages => GiftedChat.append(previousMessages, msg));
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>Hello World!</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+    <SafeAreaView style={{flex: 1}}>
+      <StatusBar />
+      <MsgNav />
+      <Emoji emotion={emotion} />
+      <GiftedChat
+        messages={messages}
+        onSend={msg => onSend(msg)}
+        renderInputToolbar={props => customtInputToolbar(props)}
+        user={{
+          _id: 1,
+        }}
+      />
     </SafeAreaView>
   );
 };
-
+const customtInputToolbar = props => (
+  <InputToolbar {...props} containerStyle={styles.containerStyle} />
+);
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  containerStyle: {
+    backgroundColor: 'white',
+    borderRadius: 25,
   },
 });
-
 export default App;
+
+
